@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM 대용량 파일 처리</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 20px;
+            background: #f8f9fa;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .file-input-label:hover {
+            background: #e8eaf6;
+            border-color: #764ba2;
+        }
+
+        .file-input-label.has-file {
+            background: #e8f5e9;
+            border-color: #4caf50;
+        }
+
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 100%;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .progress-container {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .progress-container.active {
+            display: block;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .progress-info {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .status-queued { background: #fff3cd; color: #856404; }
+        .status-preprocessing { background: #cfe2ff; color: #084298; }
+        .status-estimating { background: #e2d9f3; color: #432874; }
+        .status-processing { background: #cfe2ff; color: #084298; }
+        .status-completed { background: #d1e7dd; color: #0f5132; }
+        .status-failed { background: #f8d7da; color: #842029; }
+        .status-cancelled { background: #e0e0e0; color: #666; }
+
+        .result-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .result-card h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .cost-info {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .cost-info p {
+            margin: 5px 0;
+            color: #666;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #842029;
+            border: 1px solid #f5c2c7;
+        }
+
+        .alert-success {
+            background: #d1e7dd;
+            color: #0f5132;
+            border: 1px solid #badbcc;
+        }
+
+        .btn-download {
+            background: #4caf50;
+            color: white;
+            margin-top: 10px;
+        }
+
+        .btn-download:hover {
+            background: #45a049;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .card {
+                padding: 20px;
+            }
+        }
+
+        .small-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 LLM 대용량 파일 처리</h1>
+            <p>최대 100MB 파일을 LLM으로 처리합니다</p>
+        </div>
+
+        <div class="card">
+            <form id="uploadForm">
+                <div class="form-group">
+                    <label>파일 선택</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="fileInput" name="file" accept=".txt,.pdf,.docx,.pptx,.xlsx" required>
+                        <label for="fileInput" class="file-input-label" id="fileLabel">
+                            <div>📁 클릭하여 파일 선택</div>
+                            <div class="small-text">지원 형식: TXT, PDF, DOCX, PPTX, XLSX (최대 100MB)</div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="prompt">처리 프롬프트</label>
+                    <textarea id="prompt" name="prompt" placeholder="예: 이 문서를 요약해주세요" required>이 문서를 요약해주세요</textarea>
+                </div>
+
+                <div class="two-column">
+                    <div class="form-group">
+                        <label for="model">LLM 모델</label>
+                        <select id="model" name="model" required>
+                            <option value="claude-haiku-4">Claude Haiku 4 (저렴)</option>
+                            <option value="claude-sonnet-4">Claude Sonnet 4 (균형)</option>
+                            <option value="claude-opus-4">Claude Opus 4 (고성능)</option>
+                            <option value="gpt-4o-mini">GPT-4o Mini (저렴)</option>
+                            <option value="gpt-4o">GPT-4o (고성능)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="apiKey">API 키</label>
+                        <input type="password" id="apiKey" name="api_key" placeholder="Anthropic 또는 OpenAI API 키" required>
+                        <div class="small-text">API 키는 서버에 저장되지 않습니다</div>
+                    </div>
+                </div>
+
+                <div class="two-column">
+                    <div class="form-group">
+                        <label for="chunkSize">청크 크기</label>
+                        <input type="number" id="chunkSize" name="chunk_size" value="80000" min="10000" max="200000">
+                        <div class="small-text">기본값: 80000자</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="chunkOverlap">청크 오버랩</label>
+                        <input type="number" id="chunkOverlap" name="chunk_overlap" value="4000" min="0" max="10000">
+                        <div class="small-text">기본값: 4000자</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="optimizeImages" name="optimize_images" checked>
+                        이미지 최적화 (파일 크기 감소)
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                    파일 처리 시작
+                </button>
+            </form>
+
+            <div id="alertContainer"></div>
+
+            <div class="progress-container" id="progressContainer">
+                <h3>처리 진행 상황 <span id="statusBadge"></span></h3>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar" id="progressBar" style="width: 0%">0%</div>
+                </div>
+                <div class="progress-info" id="progressInfo">
+                    대기 중...
+                </div>
+
+                <div id="costInfo" class="cost-info" style="display: none;">
+                    <h4>예상 비용</h4>
+                    <p><strong>입력 토큰:</strong> <span id="inputTokens">-</span></p>
+                    <p><strong>출력 토큰:</strong> <span id="outputTokens">-</span></p>
+                    <p><strong>예상 비용:</strong> $<span id="estimatedCost">-</span></p>
+                </div>
+
+                <div id="resultContainer" style="display: none;">
+                    <button class="btn btn-download" id="downloadBtn">
+                        📥 결과 다운로드
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentJobId = null;
+        let statusInterval = null;
+
+        // File input handling
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const fileLabel = document.getElementById('fileLabel');
+            if (e.target.files.length > 0) {
+                const fileName = e.target.files[0].name;
+                const fileSize = (e.target.files[0].size / (1024 * 1024)).toFixed(2);
+                fileLabel.innerHTML = `
+                    <div>✅ ${fileName}</div>
+                    <div class="small-text">크기: ${fileSize} MB</div>
+                `;
+                fileLabel.classList.add('has-file');
+            } else {
+                fileLabel.innerHTML = `
+                    <div>📁 클릭하여 파일 선택</div>
+                    <div class="small-text">지원 형식: TXT, PDF, DOCX, PPTX, XLSX (최대 100MB)</div>
+                `;
+                fileLabel.classList.remove('has-file');
+            }
+        });
+
+        // Form submission
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const submitBtn = document.getElementById('submitBtn');
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = '업로드 중...';
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    currentJobId = data.job_id;
+                    showAlert(data.message, 'success');
+                    document.getElementById('progressContainer').classList.add('active');
+                    startStatusPolling();
+                } else {
+                    showAlert(data.error || '업로드 실패', 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '파일 처리 시작';
+                }
+            } catch (error) {
+                showAlert('서버 연결 오류: ' + error.message, 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '파일 처리 시작';
+            }
+        });
+
+        function startStatusPolling() {
+            if (statusInterval) {
+                clearInterval(statusInterval);
+            }
+
+            statusInterval = setInterval(async () => {
+                if (!currentJobId) return;
+
+                try {
+                    const response = await fetch(`/status/${currentJobId}`);
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        updateProgress(data);
+
+                        if (data.status === 'completed' || data.status === 'failed' || data.status === 'cancelled') {
+                            clearInterval(statusInterval);
+                            document.getElementById('submitBtn').disabled = false;
+                            document.getElementById('submitBtn').textContent = '파일 처리 시작';
+
+                            if (data.status === 'completed') {
+                                showResult();
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Status check error:', error);
+                }
+            }, 1000);
+        }
+
+        function updateProgress(data) {
+            const progressBar = document.getElementById('progressBar');
+            const progressInfo = document.getElementById('progressInfo');
+            const statusBadge = document.getElementById('statusBadge');
+
+            const progress = data.progress || 0;
+            progressBar.style.width = progress + '%';
+            progressBar.textContent = progress + '%';
+
+            progressInfo.innerHTML = `
+                <strong>${data.message}</strong><br>
+                ${data.processed_chunks || 0} / ${data.total_chunks || 0} 청크 처리됨
+            `;
+
+            statusBadge.className = `status-badge status-${data.status}`;
+            statusBadge.textContent = getStatusText(data.status);
+
+            // Show cost info if available
+            if (data.estimated_cost) {
+                const costInfo = document.getElementById('costInfo');
+                costInfo.style.display = 'block';
+                document.getElementById('inputTokens').textContent = data.estimated_cost.input_tokens.toLocaleString();
+                document.getElementById('outputTokens').textContent = data.estimated_cost.output_tokens.toLocaleString();
+                document.getElementById('estimatedCost').textContent = data.estimated_cost.total_cost.toFixed(4);
+            }
+        }
+
+        function getStatusText(status) {
+            const statusTexts = {
+                'queued': '대기 중',
+                'preprocessing': '전처리 중',
+                'estimating': '비용 추정 중',
+                'processing': '처리 중',
+                'completed': '완료',
+                'failed': '실패',
+                'cancelled': '취소됨'
+            };
+            return statusTexts[status] || status;
+        }
+
+        function showResult() {
+            document.getElementById('resultContainer').style.display = 'block';
+        }
+
+        document.getElementById('downloadBtn').addEventListener('click', function() {
+            if (currentJobId) {
+                window.location.href = `/download/${currentJobId}`;
+            }
+        });
+
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alertContainer');
+            const alertClass = type === 'error' ? 'alert-error' : 'alert-success';
+
+            alertContainer.innerHTML = `
+                <div class="alert ${alertClass}">
+                    ${message}
+                </div>
+            `;
+
+            setTimeout(() => {
+                alertContainer.innerHTML = '';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

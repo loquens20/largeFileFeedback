@@ -31,7 +31,33 @@ pip install -r requirements.txt
 
 ## 🚀 빠른 시작
 
-### 1. CLI 사용 (가장 쉬운 방법)
+### 1. 웹 인터페이스 사용 (가장 쉬운 방법)
+
+```bash
+# Flask 및 필요한 패키지 설치
+pip install -r requirements.txt
+
+# 웹 서버 시작
+python app.py
+```
+
+웹 브라우저에서 `http://localhost:5000` 접속 후:
+
+1. 📁 **파일 선택**: TXT, PDF, DOCX, PPTX, XLSX 파일 업로드 (최대 100MB)
+2. ✏️ **프롬프트 입력**: LLM에게 어떤 작업을 할지 지시
+3. 🤖 **모델 선택**: Claude Haiku/Sonnet/Opus 또는 GPT-4o/mini
+4. 🔑 **API 키 입력**: Anthropic 또는 OpenAI API 키 (저장되지 않음)
+5. 🚀 **처리 시작**: 실시간으로 진행상황 확인
+6. 📥 **결과 다운로드**: 처리 완료 후 JSON 형식으로 다운로드
+
+**웹 인터페이스 특징:**
+- 실시간 진행상황 표시
+- 청크별 처리 상태 확인
+- 예상 비용 자동 계산
+- 사용자 친화적인 UI
+- 모바일 반응형 디자인
+
+### 2. CLI 사용
 
 ```bash
 # 환경 변수 설정
@@ -56,7 +82,7 @@ python cli_processor.py status
 python cli_processor.py export document.pdf --output results.json
 ```
 
-### 2. Python 코드로 사용
+### 3. Python 코드로 사용
 
 ```python
 from integrated_processor import IntegratedProcessor
@@ -82,7 +108,7 @@ state = processor.process_file(
 processor.export_results(state, "analysis_results.json")
 ```
 
-### 3. 데모 모드로 시작
+### 4. 데모 모드로 시작
 
 API 키가 없어도 시스템을 테스트할 수 있습니다:
 
@@ -279,6 +305,12 @@ print(f"평균 청크당 비용: ${data['total_cost'] / len(data['results']):.4f
 
 ```
 largeFileFeedback/
+├── app.py                     # Flask 웹 서버
+├── templates/
+│   └── index.html            # 웹 인터페이스 UI
+├── static/
+│   ├── css/                  # CSS 파일
+│   └── js/                   # JavaScript 파일
 ├── document_preprocessor.py    # 문서 전처리 (텍스트/이미지 추출)
 ├── llm_large_file_processor.py # 청킹 및 상태 관리
 ├── integrated_processor.py     # 통합 파이프라인
@@ -286,6 +318,8 @@ largeFileFeedback/
 ├── demo.py                    # 데모 및 예제
 ├── requirements.txt           # 패키지 의존성
 ├── README.md                  # 이 파일
+├── uploads/                   # 업로드된 파일 (자동 생성)
+├── results/                   # 처리 결과 (자동 생성)
 ├── processing_states/         # 처리 상태 저장 (자동 생성)
 └── chunks/                    # 청크 캐시 (자동 생성)
 ```
